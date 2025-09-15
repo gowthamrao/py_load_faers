@@ -27,6 +27,9 @@ jobs:
         python -m pipx ensurepath
         pipx install poetry
 
+    - name: Set up Docker
+      uses: docker/setup-docker-action@v4
+
     - name: Install dependencies
       run: poetry install
 
