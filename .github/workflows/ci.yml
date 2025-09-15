@@ -28,7 +28,12 @@ jobs:
         pipx install poetry
 
     - name: Set up Docker
-      uses: docker/setup-docker-action@v4
+      uses: crazy-max/ghaction-setup-docker@v1
+      with:
+        daemon-config: |
+          {
+            "hosts": ["tcp://127.0.0.1:2375"]
+          }
 
     - name: Install dependencies
       run: poetry install
