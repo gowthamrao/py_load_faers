@@ -15,7 +15,7 @@ from typer.testing import CliRunner
 from py_load_faers.cli import app
 from py_load_faers.config import DatabaseSettings
 from py_load_faers.models import FAERS_TABLE_MODELS
-from py_load_faers_postgres.loader import PostgresLoader
+from py_load_faers.postgres.loader import PostgresLoader
 
 # Mark all tests in this module as 'integration'
 pytestmark = pytest.mark.integration
