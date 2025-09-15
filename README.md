@@ -1,6 +1,6 @@
-# py-load-faers
+# py_load_faers
 
-`py-load-faers` is a Python package for downloading, processing, and loading the FDA Adverse Event Reporting System (FAERS) data into a database.
+`py_load_faers` is a Python package for downloading, processing, and loading the FDA Adverse Event Reporting System (FAERS) data into a database.
 
 ## Project Overview
 
@@ -21,7 +21,7 @@ This package provides a command-line interface (CLI) to automate the process of 
 To install the package, you can use `pip`:
 
 ```bash
-pip install py-load-faers
+pip install py_load_faers
 ```
 
 ## Configuration
@@ -46,7 +46,7 @@ The package provides a CLI for managing the FAERS data loading process.
 To initialize the database schema, run the `db-init` command:
 
 ```bash
-py-load-faers db-init
+py_load_faers db-init
 ```
 
 ### Run the ETL process
@@ -54,13 +54,13 @@ py-load-faers db-init
 To run the full ETL process for a specific quarter, use the `run` command:
 
 ```bash
-py-load-faers run --quarter 2023q1
+py_load_faers run --quarter 2023q1
 ```
 
 To run the ETL process in delta mode (i.e., load all new quarters since the last successful load), use the `run` command with the `--mode delta` option:
 
 ```bash
-py-load-faers run --mode delta
+py_load_faers run --mode delta
 ```
 
 ### Verify the data
@@ -68,7 +68,7 @@ py-load-faers run --mode delta
 To run data quality checks on the loaded data, use the `db-verify` command:
 
 ```bash
-py-load-faers db-verify
+py_load_faers db-verify
 ```
 
 ## Development & Contributing
@@ -76,8 +76,8 @@ py-load-faers db-verify
 To contribute to the project, you can clone the repository and install the dependencies using `poetry`:
 
 ```bash
-git clone https://github.com/your-username/py-load-faers.git
-cd py-load-faers
+git clone https://github.com/your-username/py_load_faers.git
+cd py_load_faers
 poetry install
 ```
 

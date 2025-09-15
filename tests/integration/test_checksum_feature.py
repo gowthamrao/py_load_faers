@@ -15,7 +15,7 @@ from testcontainers.postgres import PostgresContainer
 from py_load_faers.config import AppSettings, DatabaseSettings, DownloaderSettings
 from py_load_faers.engine import FaersLoaderEngine
 from py_load_faers.models import FAERS_TABLE_MODELS
-from py_load_faers_postgres.loader import PostgresLoader
+from py_load_faers.postgres.loader import PostgresLoader
 
 # Mark all tests in this file as integration tests
 pytestmark = pytest.mark.integration
