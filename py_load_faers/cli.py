@@ -11,7 +11,7 @@ from . import config
 from . import downloader
 from .engine import FaersLoaderEngine
 from .models import FAERS_TABLE_MODELS
-from py_load_faers_postgres.loader import PostgresLoader
+from .postgres.loader import PostgresLoader
 
 app = typer.Typer(help="A high-performance ETL tool for FAERS data.")
 

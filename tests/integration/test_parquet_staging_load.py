@@ -12,7 +12,7 @@ from py_load_faers.config import (
     ProcessingSettings,
 )
 from py_load_faers.engine import FaersLoaderEngine
-from py_load_faers_postgres.loader import PostgresLoader
+from py_load_faers.postgres.loader import PostgresLoader
 from pytest_mock import MockerFixture
 from testcontainers.postgres import PostgresContainer
 

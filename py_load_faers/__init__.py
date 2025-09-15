@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-py-load-faers
+py_load_faers
 
 A Python package for high-performance ETL of FAERS data.
 """

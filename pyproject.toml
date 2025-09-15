@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "py-load-faers"
+name = "py_load_faers"
 version = "1.0.0"
 description = "A Python package for high-performance ETL of FAERS data."
 authors = ["Gowtham Rao <rao@ohdsi.org>"]
@@ -22,7 +22,7 @@ polars = "^0.20.0"
 pyarrow = "^15.0.0"
 
 [tool.poetry.scripts]
-faers-loader = "py_load_faers.cli:app"
+py_load_faers = "py_load_faers.cli:app"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4"

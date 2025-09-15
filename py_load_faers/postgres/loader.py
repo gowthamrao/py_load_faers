@@ -12,9 +12,9 @@ import psycopg
 from pydantic import BaseModel
 from psycopg.rows import dict_row
 
-from py_load_faers.config import DatabaseSettings
-from py_load_faers.database import AbstractDatabaseLoader
-from py_load_faers.exceptions import DataQualityError
+from ..config import DatabaseSettings
+from ..database import AbstractDatabaseLoader
+from ..exceptions import DataQualityError
 
 logger = logging.getLogger(__name__)
 
