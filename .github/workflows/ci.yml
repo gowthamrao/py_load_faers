@@ -23,37 +23,13 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Set up Docker
-        uses: docker/setup-docker-action@v4
+      - name: Set up PostgreSQL
+        uses: ikalnytskyi/action-setup-postgres@v7
         with:
-          set-host: true
-
-      - name: Docker Info
-        if: runner.os == 'Windows'
-        run: |
-          docker info
-          docker version
-        shell: bash
-
-      - name: Start PostgreSQL container
-        run: |
-          docker run --name postgres \
-            -e POSTGRES_USER=user \
-            -e POSTGRES_PASSWORD=password \
-            -e POSTGRES_DB=test_db \
-            -p 5432:5432 \
-            --health-cmd="pg_isready -U user" \
-            --health-interval=10s \
-            --health-timeout=5s \
-            --health-retries=5 \
-            -d postgres:13
-        shell: bash
-
-      - name: Wait for PostgreSQL to be healthy
-        uses: raschmitt/wait-for-healthy-container@v1.0.1
-        with:
-          container-name: postgres
-          timeout: 120
+          postgres-version: '14'
+          username: user
+          password: password
+          database: test_db
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
