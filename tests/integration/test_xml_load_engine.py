@@ -30,9 +30,9 @@ def db_settings(postgres_container: PostgresContainer) -> DatabaseSettings:
         type="postgresql",
         host=postgres_container.get_container_host_ip(),
         port=postgres_container.get_exposed_port(5432),
-        user=postgres_container.POSTGRES_USER,
-        password=postgres_container.POSTGRES_PASSWORD,
-        dbname=postgres_container.POSTGRES_DB,
+        user=postgres_container.username,
+        password=postgres_container.password,
+        dbname=postgres_container.dbname,
     )
 
 
