@@ -26,6 +26,11 @@ jobs:
       - name: Set up Docker
         uses: docker/setup-docker-action@v4
 
+      - name: Switch to Linux containers
+        if: runner.os == 'Windows'
+        run: '& "C:\Program Files\Docker\Docker\DockerCli.exe" -SwitchDaemon'
+        shell: pwsh
+
       - name: Start PostgreSQL container
         run: |
           docker run --name postgres \
