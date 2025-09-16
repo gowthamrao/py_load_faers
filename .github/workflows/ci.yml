@@ -35,7 +35,7 @@ jobs:
           pipx install poetry
 
       - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@v3
+        uses: step-security/ghaction-setup-docker@v4
         with:
           daemon-config: |
             {
