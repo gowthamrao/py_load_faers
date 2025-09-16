@@ -26,6 +26,13 @@ jobs:
       - name: Set up Docker
         uses: docker/setup-docker-action@v4
 
+      - name: Find DockerCli.exe
+        if: runner.os == 'Windows'
+        run: |
+          Get-ChildItem -Path "C:\Program Files\Docker" -Recurse -ErrorAction SilentlyContinue
+          Get-ChildItem -Path C:\ -Recurse -Filter DockerCli.exe -ErrorAction SilentlyContinue
+        shell: pwsh
+
       - name: Switch to Linux containers
         if: runner.os == 'Windows'
         run: '& "C:\Program Files\Docker\Docker\DockerCli.exe" -SwitchDaemon'
