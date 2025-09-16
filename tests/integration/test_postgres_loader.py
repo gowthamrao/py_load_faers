@@ -35,7 +35,12 @@ SAMPLE_DRUG_DATA = """primaryid$caseid$drug_seq$drugname
 @pytest.fixture(scope="module")
 def postgres_container() -> Iterator[PostgresContainer]:
     """Fixture to start and stop a PostgreSQL container for the test module."""
-    with PostgresContainer("postgres:13") as container:
+    with PostgresContainer(
+        "postgres:13",
+        username="user",
+        password="password",
+        dbname="test_db",
+    ) as container:
         yield container
 
 
@@ -61,9 +66,9 @@ def test_postgres_loader_initialize_schema(
         type="postgresql",
         host=postgres_container.get_container_host_ip(),
         port=postgres_container.get_exposed_port(5432),
-        user="test",
-        password="test",
-        dbname="test",
+        user=postgres_container.username,
+        password=postgres_container.password,
+        dbname=postgres_container.dbname,
     )
 
     loader = PostgresLoader(db_settings)
@@ -130,9 +135,9 @@ def test_run_command_end_to_end(
         type="postgresql",
         host=postgres_container.get_container_host_ip(),
         port=postgres_container.get_exposed_port(5432),
-        user="test",
-        password="test",
-        dbname="test",
+        user=postgres_container.username,
+        password=postgres_container.password,
+        dbname=postgres_container.dbname,
     )
 
     # Use CliRunner to invoke the CLI commands
@@ -213,9 +218,9 @@ def test_data_quality_check_passes_and_fails(
         type="postgresql",
         host=postgres_container.get_container_host_ip(),
         port=postgres_container.get_exposed_port(5432),
-        user="test",
-        password="test",
-        dbname="test",
+        user=postgres_container.username,
+        password=postgres_container.password,
+        dbname=postgres_container.dbname,
     )
     env = {
         "PY_LOAD_FAERS_DB__HOST": db_settings.host,
