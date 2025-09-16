@@ -83,6 +83,8 @@ jobs:
         run: poetry run mypy --strict .
         shell: bash
       - name: Run tests
+        env:
+          TC_HOST: host.docker.internal
         run: poetry run pytest
         shell: bash
       - name: Clean up Docker
