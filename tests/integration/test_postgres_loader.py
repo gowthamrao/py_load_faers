@@ -35,10 +35,8 @@ SAMPLE_DRUG_DATA = """primaryid$caseid$drug_seq$drugname
 @pytest.fixture(scope="module")
 def postgres_container() -> Iterator[PostgresContainer]:
     """Fixture to start and stop a PostgreSQL container for the test module."""
-    container = PostgresContainer("postgres:13")
-    container.start()
-    yield container
-    container.stop()
+    with PostgresContainer("postgres:13") as container:
+        yield container
 
 
 @pytest.fixture
