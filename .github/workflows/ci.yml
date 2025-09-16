@@ -14,36 +14,37 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-22.04, macos-13, windows-latest]
         python-version: ['3.11']
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: test_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Check out code
         uses: actions/checkout@v4
 
       - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+
+      - name: Start PostgreSQL container
         run: |
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-          echo \
-            "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-            $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          sudo apt-get update
-          sudo apt-get -y --allow-downgrades install docker-ce=5:20.10.24~3-0~ubuntu-$(lsb_release -cs) docker-ce-cli=5:20.10.24~3-0~ubuntu-$(lsb_release -cs) containerd.io
+          docker run --name postgres \
+            -e POSTGRES_USER=user \
+            -e POSTGRES_PASSWORD=password \
+            -e POSTGRES_DB=test_db \
+            -p 5432:5432 \
+            --health-cmd="pg_isready -U user" \
+            --health-interval=10s \
+            --health-timeout=5s \
+            --health-retries=5 \
+            -d postgres:13
+        shell: bash
+
+      - name: Wait for PostgreSQL to be healthy
+        uses: raschmitt/wait-for-healthy-container@v1.0.1
+        with:
+          container-name: postgres
+          timeout: 120
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -56,23 +57,28 @@ jobs:
           python -m pip install pipx
           python -m pipx ensurepath
           pipx install poetry
+        shell: bash
 
       - name: Install dependencies
         run: poetry install
+        shell: bash
 
       - name: Run linters
         run: |
           poetry run black --check .
           poetry run ruff .
+        shell: bash
 
       - name: Run type checker
         run: poetry run mypy --strict .
+        shell: bash
 
       - name: Run tests
         env:
           POSTGRES_USER: user
           POSTGRES_PASSWORD: password
           POSTGRES_DB: test_db
-          POSTGRES_HOST: postgres
+          POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
         run: poetry run pytest
+        shell: bash
