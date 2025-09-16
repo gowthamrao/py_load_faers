@@ -43,9 +43,11 @@ jobs:
         run: poetry run mypy --strict .
         shell: bash
       - name: Run tests
-        env:
-          TESTCONTAINERS_RYUK_DISABLED: 'true'
         run: poetry run pytest
+        shell: bash
+      - name: Clean up Docker
+        if: always()
+        run: docker system prune -a -f --volumes
         shell: bash
 
   test-macos:
@@ -85,6 +87,10 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
         run: poetry run pytest
         shell: bash
+      - name: Clean up Docker
+        if: always()
+        run: docker system prune -a -f --volumes
+        shell: bash
 
   test-windows:
     runs-on: windows-latest
@@ -122,7 +128,9 @@ jobs:
         run: DockerCli.exe -SwitchDaemon
         shell: pwsh
       - name: Run tests
-        env:
-          TESTCONTAINERS_RYUK_DISABLED: 'true'
         run: poetry run pytest
+        shell: bash
+      - name: Clean up Docker
+        if: always()
+        run: docker system prune -a -f --volumes
         shell: bash
