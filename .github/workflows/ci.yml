@@ -34,14 +34,6 @@ jobs:
           python -m pipx ensurepath
           pipx install poetry
 
-      - name: Set up Docker
-        uses: step-security/ghaction-setup-docker@v4
-        with:
-          daemon-config: |
-            {
-              "hosts": ["tcp://127.0.0.1:2375"]
-            }
-
       - name: Install dependencies
         run: poetry install
 
