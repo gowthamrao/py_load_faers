@@ -84,7 +84,7 @@ jobs:
         shell: bash
       - name: Run tests
         env:
-          TESTCONTAINERS_RYUK_DISABLED: 'true'
+          TC_HOST: host.docker.internal
         run: poetry run pytest
         shell: bash
       - name: Clean up Docker
