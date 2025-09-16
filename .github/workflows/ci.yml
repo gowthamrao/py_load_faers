@@ -23,13 +23,10 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Set up PostgreSQL
-        uses: ikalnytskyi/action-setup-postgres@v7
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
         with:
-          postgres-version: '14'
-          username: user
-          password: password
-          database: test_db
+          set-host: true
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -60,10 +57,6 @@ jobs:
 
       - name: Run tests
         env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: test_db
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
         run: poetry run pytest
         shell: bash
