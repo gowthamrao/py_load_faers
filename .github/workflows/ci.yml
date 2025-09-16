@@ -11,68 +11,118 @@ on:
       - master
 
 jobs:
-  test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-22.04]
-        python-version: ['3.11']
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: test_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+  test-linux:
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v4
-
       - name: Set up Docker
-        run: |
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-          echo \
-            "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-            $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          sudo apt-get update
-          sudo apt-get -y --allow-downgrades install docker-ce=5:20.10.24~3-0~ubuntu-$(lsb_release -cs) docker-ce-cli=5:20.10.24~3-0~ubuntu-$(lsb_release -cs) containerd.io
-
-      - name: Set up Python ${{ matrix.python-version }}
+        uses: docker/setup-docker-action@v4
+        with:
+          set-host: true
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-
+          python-version: '3.11'
       - name: Install Poetry
         run: |
           python -m pip install --upgrade pip
           python -m pip install pipx
           python -m pipx ensurepath
           pipx install poetry
-
+        shell: bash
       - name: Install dependencies
         run: poetry install
-
+        shell: bash
       - name: Run linters
         run: |
           poetry run black --check .
           poetry run ruff .
-
+        shell: bash
       - name: Run type checker
         run: poetry run mypy --strict .
-
+        shell: bash
       - name: Run tests
         env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: test_db
-          POSTGRES_HOST: postgres
-          POSTGRES_PORT: 5432
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
         run: poetry run pytest
+        shell: bash
+
+  test-macos:
+    runs-on: macos-13
+    needs: test-linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+        with:
+          set-host: true
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pipx
+          python -m pipx ensurepath
+          pipx install poetry
+        shell: bash
+      - name: Install dependencies
+        run: poetry install
+        shell: bash
+      - name: Run linters
+        run: |
+          poetry run black --check .
+          poetry run ruff .
+        shell: bash
+      - name: Run type checker
+        run: poetry run mypy --strict .
+        shell: bash
+      - name: Run tests
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
+        run: poetry run pytest
+        shell: bash
+
+  test-windows:
+    runs-on: windows-latest
+    needs: test-macos
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+        with:
+          set-host: true
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pipx
+          python -m pipx ensurepath
+          pipx install poetry
+        shell: bash
+      - name: Install dependencies
+        run: poetry install
+        shell: bash
+      - name: Run linters
+        run: |
+          poetry run black --check .
+          poetry run ruff .
+        shell: bash
+      - name: Run type checker
+        run: poetry run mypy --strict .
+        shell: bash
+      - name: Switch to Linux containers on Windows
+        run: DockerCli.exe -SwitchDaemon
+        shell: pwsh
+      - name: Run tests
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
+        run: poetry run pytest
+        shell: bash
