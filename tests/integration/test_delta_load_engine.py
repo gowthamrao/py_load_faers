@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2025-2026 Gowtham Adamane Rao. All Rights Reserved.
 #
 # Licensed under the Prosperity Public License 3.0.0 (the "License").
