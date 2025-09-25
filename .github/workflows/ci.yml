@@ -62,9 +62,11 @@ jobs:
 
       - name: Install dependencies
         run: poetry install --no-interaction --no-root
+        shell: bash
 
       - name: Install project
         run: poetry install --no-interaction
+        shell: bash
 
       - name: Run tests and collect coverage
         env:
@@ -76,6 +78,7 @@ jobs:
           CI: true
         run: |
           poetry run pytest --cov=py_load_faers --cov-report=xml
+        shell: bash
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
