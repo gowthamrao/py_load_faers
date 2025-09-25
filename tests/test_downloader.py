@@ -88,9 +88,7 @@ def test_download_quarter(mocker: MockerFixture, tmp_path: Path) -> None:
     assert all(c in "0123456789abcdef" for c in result_checksum)
 
 
-def test_download_quarter_corrupted_file_is_deleted(
-    mocker: MockerFixture, tmp_path: Path
-) -> None:
+def test_download_quarter_corrupted_file_is_deleted(mocker: MockerFixture, tmp_path: Path) -> None:
     """Test that a corrupted (non-zip) downloaded file is deleted."""
     # Mock requests.get to simulate a successful download of some data
     mock_response = MagicMock()
@@ -112,9 +110,7 @@ def test_download_quarter_corrupted_file_is_deleted(
     assert not filepath.exists()
 
 
-def test_download_quarter_zero_byte_file_is_deleted(
-    mocker: MockerFixture, tmp_path: Path
-) -> None:
+def test_download_quarter_zero_byte_file_is_deleted(mocker: MockerFixture, tmp_path: Path) -> None:
     """Test that a zero-byte downloaded file is treated as invalid and deleted."""
     # Mock requests.get to simulate a download of an empty file
     mock_response = MagicMock()
@@ -142,9 +138,7 @@ def test_download_quarter_network_error(
 ) -> None:
     """Test that network errors are handled gracefully."""
     mock_response = MagicMock()
-    mock_response.raise_for_status.side_effect = requests.HTTPError(
-        f"{status_code} Client Error"
-    )
+    mock_response.raise_for_status.side_effect = requests.HTTPError(f"{status_code} Client Error")
     mocker.patch("requests.Session.get", return_value=mock_response)
 
     settings = DownloaderSettings(download_dir=str(tmp_path))
