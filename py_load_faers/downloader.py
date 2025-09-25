@@ -120,13 +120,19 @@ def download_quarter(quarter: str, settings: DownloaderSettings) -> Optional[Tup
             unit_divisor=1024,
         ) as bar:
             for chunk in response.iter_content(chunk_size=8192):
-                size = f.write(chunk)
-                bar.update(size)
+                if chunk:
+                    size = f.write(chunk)
+                    if size:
+                        bar.update(size)
 
         logger.info(f"Successfully downloaded to {file_path}")
 
         # R5: Verify the integrity of the downloaded ZIP file
         logger.info(f"Verifying integrity of {file_path}...")
+        if not zipfile.is_zipfile(file_path):
+            logger.error(f"Downloaded file {file_path} is not a valid zip file.")
+            file_path.unlink()
+            return None
         with zipfile.ZipFile(file_path) as zf:
             if zf.testzip() is not None:
                 logger.error(f"Downloaded file {file_path} is corrupted.")
@@ -148,8 +154,8 @@ def download_quarter(quarter: str, settings: DownloaderSettings) -> Optional[Tup
     except requests.RequestException as e:
         logger.error(f"Failed to download {download_url}. Error: {e}")
         return None
-    except zipfile.BadZipFile:
-        logger.error(f"File at {file_path} is not a valid zip file or is corrupted.")
+    except (zipfile.BadZipFile, PermissionError) as e:
+        logger.error(f"An error occurred: {e}")
         if file_path.exists():
             file_path.unlink()
         return None
