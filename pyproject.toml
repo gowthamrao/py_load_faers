@@ -2,10 +2,8 @@
 name = "py_load_faers"
 version = "1.0.0"
 description = "A Python package for high-performance ETL of FAERS data."
-authors = [
-  { name="Gowtham Adamane Rao", email="rao@ohdsi.org" },
-]
-license = { file = "LICENSE.md" }
+authors = ["Gowtham Adamane Rao <rao@ohdsi.org>"]
+license = "The Prosperity Public License 3.0.0"
 readme = "README.md"
 classifiers = [
     "License :: Other/Proprietary License",
