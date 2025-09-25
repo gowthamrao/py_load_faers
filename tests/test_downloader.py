@@ -9,10 +9,12 @@
 """
 Tests for the downloader module.
 """
+import errno
 import io
 import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock
+
 import pytest
 import requests
 from pytest_mock import MockerFixture
@@ -86,8 +88,8 @@ def test_download_quarter(mocker: MockerFixture, tmp_path: Path) -> None:
     assert all(c in "0123456789abcdef" for c in result_checksum)
 
 
-def test_download_quarter_corrupted_file(mocker: MockerFixture, tmp_path: Path) -> None:
-    """Test that a corrupted downloaded file is deleted."""
+def test_download_quarter_corrupted_file_is_deleted(mocker: MockerFixture, tmp_path: Path) -> None:
+    """Test that a corrupted (non-zip) downloaded file is deleted."""
     # Mock requests.get to simulate a successful download of some data
     mock_response = MagicMock()
     mock_response.raise_for_status.return_value = None
@@ -98,24 +100,33 @@ def test_download_quarter_corrupted_file(mocker: MockerFixture, tmp_path: Path) 
     # Mock zipfile.is_zipfile to return False, simulating a corrupted file
     mocker.patch("zipfile.is_zipfile", return_value=False)
 
-    settings = DownloaderSettings(download_dir=str(tmp_path), retries=3, timeout=60)
+    settings = DownloaderSettings(download_dir=str(tmp_path))
     quarter = "2025q1"
-
-    # Mock open to ensure the file is created, so we can check if it's deleted
-    mocker.patch("builtins.open", mocker.mock_open())
-
-    # Mock Path.unlink to verify it's called
-    mocker.patch("pathlib.Path.unlink")
+    filepath = tmp_path / f"faers_ascii_{quarter}.zip"
 
     result = downloader.download_quarter(quarter, settings)
 
     assert result is None
-    # We can't easily check if the file was deleted because of the open mock,
-    # but we can check if unlink was called.
-    # This is a bit of an implementation detail test, but it's a good way to
-    # ensure the cleanup logic is triggered.
-    # The downloader has a bug, it does not delete the file if it is corrupted.
-    # assert mock_unlink.called
+    assert not filepath.exists()
+
+
+def test_download_quarter_zero_byte_file_is_deleted(mocker: MockerFixture, tmp_path: Path) -> None:
+    """Test that a zero-byte downloaded file is treated as invalid and deleted."""
+    # Mock requests.get to simulate a download of an empty file
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.headers.get.return_value = "0"
+    mock_response.iter_content.return_value = [b""]
+    mocker.patch("requests.Session.get", return_value=mock_response)
+
+    settings = DownloaderSettings(download_dir=str(tmp_path))
+    quarter = "2025q1"
+    filepath = tmp_path / f"faers_ascii_{quarter}.zip"
+
+    result = downloader.download_quarter(quarter, settings)
+
+    assert result is None
+    assert not filepath.exists()
 
 
 @pytest.mark.parametrize(
@@ -150,6 +161,83 @@ def test_download_quarter_permission_error(mocker: MockerFixture, tmp_path: Path
     settings = DownloaderSettings(download_dir=str(tmp_path))
     result = downloader.download_quarter("2025q1", settings)
     assert result is None
+
+
+def test_download_quarter_os_error_cleanup(mocker: MockerFixture, tmp_path: Path) -> None:
+    """Test that an OSError (e.g., disk full) during file writing is handled."""
+    # Mock requests.get to simulate a successful download
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.headers.get.return_value = "123"
+    mock_response.iter_content.return_value = [b"some data"]
+    mocker.patch("requests.Session.get", return_value=mock_response)
+
+    # Mock open to raise an OSError simulating a disk full error
+    mock_open = mocker.mock_open()
+    mock_open.side_effect = OSError(errno.ENOSPC, "No space left on device")
+    mocker.patch("builtins.open", mock_open)
+
+    settings = DownloaderSettings(download_dir=str(tmp_path))
+    quarter = "2025q1"
+    filepath = tmp_path / f"faers_ascii_{quarter}.zip"
+
+    result = downloader.download_quarter(quarter, settings)
+
+    assert result is None
+    # The key check is that the exception is caught and doesn't propagate.
+    # We also want to ensure no partial file is left, but since `open` itself
+    # is mocked to fail, no file is ever created.
+    assert not filepath.exists()
+
+
+def test_download_quarter_timeout_cleanup(mocker: MockerFixture, tmp_path: Path) -> None:
+    """Test that a download timeout is handled and the partial file is cleaned up."""
+    # Mock requests.get to raise a Timeout exception
+    mocker.patch("requests.Session.get", side_effect=requests.Timeout)
+
+    settings = DownloaderSettings(download_dir=str(tmp_path))
+    quarter = "2025q1"
+    filepath = tmp_path / f"faers_ascii_{quarter}.zip"
+
+    # Create a dummy file to ensure it gets deleted
+    filepath.touch()
+
+    result = downloader.download_quarter(quarter, settings)
+
+    assert result is None
+    assert not filepath.exists()
+
+
+def test_download_quarter_non_ascii_path(mocker: MockerFixture, tmp_path: Path) -> None:
+    """Test downloading to a path with non-ASCII characters."""
+    # Create a subdirectory with a non-ASCII name
+    non_ascii_dir = tmp_path / "tést"
+    non_ascii_dir.mkdir()
+
+    # Create a valid in-memory zip file
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("test.txt", "this is a test file")
+    zip_content = zip_buffer.getvalue()
+
+    # Mock the download
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.headers.get.return_value = str(len(zip_content))
+    mock_response.iter_content.return_value = [zip_content]
+    mocker.patch("requests.Session.get", return_value=mock_response)
+
+    settings = DownloaderSettings(download_dir=str(non_ascii_dir))
+    quarter = "2025q1"
+
+    result = downloader.download_quarter(quarter, settings)
+
+    assert result is not None
+    result_path, _ = result
+    expected_path = non_ascii_dir / f"faers_ascii_{quarter}.zip"
+    assert result_path == expected_path
+    assert expected_path.exists()
+    assert expected_path.read_bytes() == zip_content
 
 
 def test_download_quarter_preexisting_file(mocker: MockerFixture, tmp_path: Path) -> None:
