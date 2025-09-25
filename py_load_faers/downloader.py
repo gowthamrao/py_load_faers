@@ -153,9 +153,11 @@ def download_quarter(quarter: str, settings: DownloaderSettings) -> Optional[Tup
 
     except requests.RequestException as e:
         logger.error(f"Failed to download {download_url}. Error: {e}")
+        if file_path.exists():
+            file_path.unlink()
         return None
-    except (zipfile.BadZipFile, PermissionError) as e:
-        logger.error(f"An error occurred: {e}")
+    except (zipfile.BadZipFile, PermissionError, OSError) as e:
+        logger.error(f"An error occurred while processing {file_path}: {e}")
         if file_path.exists():
             file_path.unlink()
         return None
