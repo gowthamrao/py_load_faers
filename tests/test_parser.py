@@ -10,6 +10,7 @@
 Tests for the ASCII file parser.
 """
 from pathlib import Path
+import pytest
 from py_load_faers.parser import parse_ascii_file, parse_ascii_quarter
 
 SAMPLE_DEMO_DATA = """\
@@ -50,6 +51,44 @@ def test_parse_empty_file(tmp_path: Path) -> None:
 
     records = list(parse_ascii_file(data_file))
     assert len(records) == 0
+
+
+def test_parse_malformed_data(tmp_path: Path) -> None:
+    """Test parsing of a file with a malformed data row."""
+    # The second data row has one fewer field than the header
+    malformed_data = "ID$NAME$VALUE\n1$A$100\n2$B\n3$C$300"
+    data_file = tmp_path / "MALFORMED.txt"
+    data_file.write_text(malformed_data)
+
+    records = list(parse_ascii_file(data_file))
+
+    # The parser should resiliently skip the malformed row
+    assert len(records) == 2
+    assert records[0] == {"id": "1", "name": "A", "value": "100"}
+    assert records[1] == {"id": "3", "name": "C", "value": "300"}
+
+
+@pytest.mark.parametrize(
+    "encoding, line_ending",
+    [
+        ("utf-8", "\n"),
+        ("latin-1", "\n"),
+        ("utf-16", "\n"),
+        ("utf-8", "\r\n"),  # Windows line endings
+        ("utf-8", "\r"),  # Old Mac line endings
+    ],
+)
+def test_file_encodings_and_line_endings(tmp_path: Path, encoding: str, line_ending: str) -> None:
+    """Test parsing with various file encodings and line endings."""
+    data = line_ending.join(["ID$NAME", "1$Résumé", "2$Test"])
+    data_file = tmp_path / "test.txt"
+    data_file.write_bytes(data.encode(encoding))
+
+    records = list(parse_ascii_file(data_file, encoding=encoding))
+
+    assert len(records) == 2
+    assert records[0] == {"id": "1", "name": "Résumé"}
+    assert records[1] == {"id": "2", "name": "Test"}
 
 
 def test_parse_ascii_quarter() -> None:

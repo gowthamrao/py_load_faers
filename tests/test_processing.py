@@ -162,3 +162,50 @@ def test_deduplicate_polars_missing_column(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Deduplication failed due to missing columns"):
         deduplicate_polars([csv_path], "csv")
+
+
+def test_deduplicate_polars_with_missing_fda_dt(
+    create_demo_csv: Callable[[List[Dict[str, Any]], str], Path],
+) -> None:
+    """Test that records with missing fda_dt are handled correctly."""
+    records = [
+        {"caseid": "1", "primaryid": "101", "fda_dt": "20240101"},
+        {"caseid": "1", "primaryid": "102", "fda_dt": ""},  # Missing fda_dt
+        {"caseid": "2", "primaryid": "201", "fda_dt": "20240301"},
+    ]
+    # The record with the missing fda_dt should be sorted last and thus not chosen.
+    expected_ids = {"101", "201"}
+    demo_file = create_demo_csv(records, "test_missing_fda_dt.csv")
+    result = deduplicate_polars([demo_file], "csv")
+    assert result == expected_ids
+
+
+def test_deduplicate_polars_with_malformed_fda_dt(
+    create_demo_csv: Callable[[List[Dict[str, Any]], str], Path],
+) -> None:
+    """Test that records with malformed fda_dt are handled correctly."""
+    records = [
+        {"caseid": "1", "primaryid": "101", "fda_dt": "20240101"},
+        {"caseid": "1", "primaryid": "102", "fda_dt": "NOT-A-DATE"},  # Malformed
+        {"caseid": "2", "primaryid": "201", "fda_dt": "20240301"},
+    ]
+    # The record with the malformed fda_dt should be filtered out.
+    expected_ids = {"101", "201"}
+    demo_file = create_demo_csv(records, "test_malformed_fda_dt.csv")
+    result = deduplicate_polars([demo_file], "csv")
+    assert result == expected_ids
+
+
+def test_deduplicate_polars_non_numeric_primaryid(
+    create_demo_csv: Callable[[List[Dict[str, Any]], str], Path],
+) -> None:
+    """Test tie-breaking with non-numeric primaryid values."""
+    records = [
+        # Tie on fda_dt, should be broken by primaryid
+        {"caseid": "5", "primaryid": "ABC-100", "fda_dt": "20240501"},
+        {"caseid": "5", "primaryid": "ABC-101", "fda_dt": "20240501"},  # Keep
+    ]
+    expected_ids = {"ABC-101"}
+    demo_file = create_demo_csv(records, "test_non_numeric_primaryid.csv")
+    result = deduplicate_polars([demo_file], "csv")
+    assert result == expected_ids
