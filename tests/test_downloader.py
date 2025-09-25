@@ -100,13 +100,12 @@ def test_download_quarter_corrupted_file(mocker: MockerFixture, tmp_path: Path) 
 
     settings = DownloaderSettings(download_dir=str(tmp_path), retries=3, timeout=60)
     quarter = "2025q1"
-    file_path = tmp_path / f"faers_ascii_{quarter}.zip"
 
     # Mock open to ensure the file is created, so we can check if it's deleted
     mocker.patch("builtins.open", mocker.mock_open())
 
     # Mock Path.unlink to verify it's called
-    mock_unlink = mocker.patch("pathlib.Path.unlink")
+    mocker.patch("pathlib.Path.unlink")
 
     result = downloader.download_quarter(quarter, settings)
 
@@ -128,9 +127,7 @@ def test_download_quarter_network_error(
 ) -> None:
     """Test that network errors are handled gracefully."""
     mock_response = MagicMock()
-    mock_response.raise_for_status.side_effect = requests.HTTPError(
-        f"{status_code} Client Error"
-    )
+    mock_response.raise_for_status.side_effect = requests.HTTPError(f"{status_code} Client Error")
     mocker.patch("requests.Session.get", return_value=mock_response)
 
     settings = DownloaderSettings(download_dir=str(tmp_path))

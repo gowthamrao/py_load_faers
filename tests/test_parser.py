@@ -78,9 +78,7 @@ def test_parse_malformed_data(tmp_path: Path) -> None:
         ("utf-8", "\r"),  # Old Mac line endings
     ],
 )
-def test_file_encodings_and_line_endings(
-    tmp_path: Path, encoding: str, line_ending: str
-) -> None:
+def test_file_encodings_and_line_endings(tmp_path: Path, encoding: str, line_ending: str) -> None:
     """Test parsing with various file encodings and line endings."""
     data = line_ending.join(["ID$NAME", "1$Résumé", "2$Test"])
     data_file = tmp_path / "test.txt"
