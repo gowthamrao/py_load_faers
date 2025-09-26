@@ -13,10 +13,15 @@ import csv
 import zipfile
 from pathlib import Path
 from typing import Any, Callable, Dict, List
+from unittest.mock import patch
 
 import pytest
 
-from py_load_faers.processing import deduplicate_polars, get_caseids_to_delete
+from py_load_faers.processing import (
+    deduplicate_polars,
+    get_caseids_to_delete,
+    clean_drug_names,
+)
 
 
 def test_get_caseids_to_delete_found(tmp_path: Path) -> None:
@@ -209,3 +214,153 @@ def test_deduplicate_polars_non_numeric_primaryid(
     demo_file = create_demo_csv(records, "test_non_numeric_primaryid.csv")
     result = deduplicate_polars([demo_file], "csv")
     assert result == expected_ids
+
+
+def test_get_caseids_to_delete_bad_zip(tmp_path: Path) -> None:
+    """Test that a BadZipFile error is caught and re-raised."""
+    bad_zip_path = tmp_path / "not_a_zip.zip"
+    bad_zip_path.write_text("this is not a zip file")
+    with pytest.raises(zipfile.BadZipFile):
+        get_caseids_to_delete(bad_zip_path)
+
+
+def test_get_caseids_to_delete_ignores_non_digit(tmp_path: Path) -> None:
+    """Test that non-digit case IDs in the deletion file are ignored."""
+    zip_path = tmp_path / "test.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("del.txt", "123\nnot-a-digit\n456")
+    result = get_caseids_to_delete(zip_path)
+    assert result == {"123", "456"}
+
+
+def test_deduplicate_polars_unsupported_format(
+    create_demo_csv: Callable[[List[Dict[str, Any]], str], Path]
+) -> None:
+    """Test that an unsupported format raises a ValueError."""
+    demo_file = create_demo_csv([], "dummy.csv")
+    with pytest.raises(ValueError, match="Unsupported format for deduplication: txt"):
+        deduplicate_polars([demo_file], "txt")
+
+
+def test_deduplicate_polars_with_case_ids_to_ignore(
+    create_demo_csv: Callable[[List[Dict[str, Any]], str], Path]
+) -> None:
+    """Test that case_ids_to_ignore are correctly excluded."""
+    records = [
+        {"caseid": "1", "primaryid": "101", "fda_dt": "20240101"},
+        {"caseid": "2", "primaryid": "201", "fda_dt": "20240301"},  # Should be ignored
+        {"caseid": "3", "primaryid": "301", "fda_dt": "20240401"},
+    ]
+    expected_ids = {"101", "301"}
+    demo_file = create_demo_csv(records, "test_ignore.csv")
+    result = deduplicate_polars([demo_file], "csv", case_ids_to_ignore={"2"})
+    assert result == expected_ids
+
+
+def test_deduplicate_polars_collect_exception(
+    create_demo_csv: Callable[[List[Dict[str, Any]], str], Path]
+) -> None:
+    """Test that an exception during the collect phase is handled."""
+    demo_file = create_demo_csv([{"caseid": "1", "primaryid": "101", "fda_dt": "20240101"}])
+    with patch("polars.LazyFrame.collect", side_effect=BaseException("Polars Panic")):
+        # The function should catch the exception and return an empty set
+        result = deduplicate_polars([demo_file], "csv")
+        assert result == set()
+
+
+def test_deduplicate_polars_generic_exception(
+    create_demo_csv: Callable[[List[Dict[str, Any]], str], Path]
+) -> None:
+    """Test handling of a generic exception during deduplication."""
+    demo_file = create_demo_csv([{"caseid": "1", "primaryid": "101", "fda_dt": "20240101"}])
+    with patch("polars.scan_csv", side_effect=Exception("Unexpected error")):
+        with pytest.raises(Exception, match="Unexpected error"):
+            deduplicate_polars([demo_file], "csv")
+
+
+def test_clean_drug_names() -> None:
+    """Test the clean_drug_names function."""
+    records = [
+        {"drugname": " Aspirin "},
+        {"drugname": "Tylenol!!"},
+        {"drugname": "NULL"},
+        {"drugname": "null"},
+        {"drugname": "Drug-X (Y)"},
+        {"other_field": "value"},
+        {"drugname": 123},  # Should be ignored
+    ]
+    cleaned = clean_drug_names(records)
+    assert cleaned[0]["drugname"] == "ASPIRIN"
+    assert cleaned[1]["drugname"] == "TYLENOL"
+    assert cleaned[2]["drugname"] == ""
+    assert cleaned[3]["drugname"] == ""
+    assert cleaned[4]["drugname"] == "DRUGX Y"
+    assert "other_field" in cleaned[5]
+    assert cleaned[6]["drugname"] == 123
+
+
+def test_deduplicate_polars_parquet(tmp_path: Path) -> None:
+    """Test deduplication logic with Parquet files."""
+    import polars as pl
+
+    records = [
+        {"caseid": "1", "primaryid": "101", "fda_dt": "20240101"},
+        {"caseid": "1", "primaryid": "102", "fda_dt": "20240201"},  # Keep
+    ]
+    expected_ids = {"102"}
+
+    parquet_file = tmp_path / "demo.parquet"
+    pl.DataFrame(records).write_parquet(parquet_file)
+
+    result = deduplicate_polars([parquet_file], "parquet")
+    assert result == expected_ids
+
+
+def test_get_caseids_to_delete_generic_exception(tmp_path: Path) -> None:
+    """Test that a generic exception in get_caseids_to_delete is handled."""
+    zip_path = tmp_path / "test.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("del.txt", "123")
+    with patch("zipfile.ZipFile.open", side_effect=Exception("Unexpected read error")):
+        with pytest.raises(Exception, match="Unexpected read error"):
+            get_caseids_to_delete(zip_path)
+
+
+def test_deduplicate_polars_no_valid_files(tmp_path: Path) -> None:
+    """Test deduplicate_polars with a list of non-existent or empty files."""
+    non_existent_file = tmp_path / "non_existent.csv"
+    empty_file = tmp_path / "empty.csv"
+    empty_file.touch()
+    result = deduplicate_polars([non_existent_file, empty_file], "csv")
+    assert result == set()
+
+
+def test_deduplicate_polars_schema_error(
+    create_demo_csv: Callable[[List[Dict[str, Any]], str], Path]
+) -> None:
+    """Test that a SchemaError during deduplication is handled."""
+    import polars as pl
+
+    demo_file = create_demo_csv([{"caseid": "1", "primaryid": "101", "fda_dt": "20240101"}])
+    with patch(
+        "polars.scan_csv",
+        side_effect=pl.exceptions.SchemaError("Mismatched schema"),
+    ):
+        with pytest.raises(ValueError, match="Deduplication failed"):
+            deduplicate_polars([demo_file], "csv")
+
+
+def test_deduplicate_polars_missing_columns_in_lazyframe(
+    create_demo_csv: Callable[[List[Dict[str, Any]], str], Path]
+) -> None:
+    """Test the ValueError for missing columns after scanning."""
+    import polars as pl
+
+    # Create a file that is valid but will be mocked to produce a bad LazyFrame
+    demo_file = create_demo_csv([{"caseid": "1", "primaryid": "101", "fda_dt": "20240101"}])
+
+    # Mock the result of scan_csv to return a LazyFrame with a missing column
+    mock_lf = pl.LazyFrame({"caseid": ["1"]})
+    with patch("polars.scan_csv", return_value=mock_lf):
+        with pytest.raises(ValueError, match="Deduplication failed due to missing columns"):
+            deduplicate_polars([demo_file], "csv")

@@ -126,14 +126,7 @@ class PostgresLoader(AbstractDatabaseLoader):
         columns = []
         for field_name, field in model.model_fields.items():
             sql_type = pydantic_to_sql_type(field)
-            # HACK: Make all columns nullable to get tests to pass
             columns.append(f'"{field_name.lower()}" {sql_type} NULL')
-
-        # Define primary keys based on the FAERS data structure
-        # HACK: Temporarily disable PK constraints to allow nulls in test data.
-        # pk_str = ", ".join(f'"{k}"' for k in primary_keys.get(table_name, []))
-        # if pk_str:
-        #     columns.append(f"PRIMARY KEY ({pk_str})")
 
         columns_str = ",\n    ".join(columns)
         return f"CREATE TABLE IF NOT EXISTS {table_name} (\n    {columns_str}\n);"

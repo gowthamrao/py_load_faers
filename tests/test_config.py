@@ -88,3 +88,44 @@ def test_load_config_defaults_when_no_file() -> None:
     assert settings.db.host == "localhost"
     assert settings.downloader.download_dir == "./downloads"
     assert settings.log_level == "INFO"
+
+
+def test_appsettings_from_yaml_success(tmp_path: Path) -> None:
+    """Test loading settings directly from a YAML file via the classmethod."""
+    yaml_content = """
+db:
+  host: from_yaml
+  port: 1234
+log_level: CRITICAL
+"""
+    config_path = tmp_path / "direct.yaml"
+    config_path.write_text(yaml_content)
+
+    settings = AppSettings.from_yaml(config_path)
+    assert settings.db.host == "from_yaml"
+    assert settings.db.port == 1234
+    assert settings.log_level == "CRITICAL"
+    assert settings.db.user == "user"  # Check default
+
+
+def test_appsettings_from_yaml_not_found() -> None:
+    """Test that from_yaml raises FileNotFoundError for a missing file."""
+    with pytest.raises(FileNotFoundError):
+        AppSettings.from_yaml(Path("non_existent_config.yaml"))
+
+
+def test_load_config_with_empty_yaml_file(tmp_path: Path) -> None:
+    """Test that loading an empty YAML file results in default settings."""
+    config_path = tmp_path / "empty.yaml"
+    config_path.touch()
+    settings = load_config(config_file=str(config_path))
+    assert settings.db.host == "localhost"
+    assert settings.log_level == "INFO"
+
+
+def test_load_config_with_profile_not_found(sample_config_file: Path) -> None:
+    """Test loading with a profile that doesn't exist in the file."""
+    settings = load_config(profile="non_existent_profile", config_file=str(sample_config_file))
+    # Should fall back to default values, not other profiles
+    assert settings.db.host == "localhost"
+    assert settings.db.user == "user"

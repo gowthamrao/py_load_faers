@@ -117,7 +117,6 @@ class FaersLoaderEngine:
                 self.db_loader.rollback()
                 logger.error("Transaction has been rolled back.")
             raise
-        return None
 
     def _initialize_load_metadata(self, quarter: str, load_type: str) -> Dict[str, Any]:
         """Initializes and returns a metadata dictionary for a load process."""
@@ -166,10 +165,16 @@ class FaersLoaderEngine:
                 staging_dir,
             )
 
+            # --- Deletions for Nullified Cases ---
+            # Handle deletions first, as a quarter might only contain nullifications.
+            if nullified_ids:
+                deleted_count = self.db_loader.execute_deletions(list(nullified_ids))
+                metadata["rows_deleted"] = deleted_count
+
             # --- Unified Deduplication ---
             demo_chunks = staged_chunk_files.get("demo", [])
             if not demo_chunks:
-                logger.warning(f"No DEMO records found for {quarter}. Skipping.")
+                logger.warning(f"No DEMO records found for {quarter}. Skipping load/merge steps.")
                 metadata["status"] = "SUCCESS"
                 return
 
@@ -191,10 +196,6 @@ class FaersLoaderEngine:
             }
 
             caseids_to_upsert = self._get_caseids_from_final_demo(final_staged_files.get("demo"))
-
-            if nullified_ids:
-                deleted_count = self.db_loader.execute_deletions(list(nullified_ids))
-                metadata["rows_deleted"] = deleted_count
 
             if caseids_to_upsert:
                 self.db_loader.handle_delta_merge(list(caseids_to_upsert), data_sources)
@@ -256,7 +257,18 @@ class FaersLoaderEngine:
         if not staged_files or not primaryids_to_keep:
             return final_files
 
-        temp_dir = next(iter(staged_files.values()))[0].parent
+        # Find the first available chunk path to determine the temp directory
+        first_chunk_path = None
+        for chunks_list in staged_files.values():
+            if chunks_list:
+                first_chunk_path = chunks_list[0]
+                break
+
+        if not first_chunk_path:
+            logger.warning("No staged file chunks found to filter.")
+            return final_files
+
+        temp_dir = first_chunk_path.parent
         primaryids_series = pl.Series("primaryid", list(primaryids_to_keep))
 
         for table_name, chunks in staged_files.items():
@@ -273,9 +285,6 @@ class FaersLoaderEngine:
                     pl.scan_csv(chunk, separator="$", has_header=True, ignore_errors=True)
                     for chunk in chunks
                 ]
-
-            if not lazy_frames:
-                continue
 
             df_combined = pl.concat(lazy_frames)
 
@@ -308,14 +317,19 @@ class FaersLoaderEngine:
                     collected_df.write_csv(final_path, separator="$")
             else:
                 logger.warning(f"No records left for table {table_name} after filtering.")
-                # Create an empty file with headers so downstream steps don't fail
-                if format == "csv":
+                # Create an empty file so downstream steps don't fail
+                if format == "parquet":
+                    # Write an empty DataFrame to create a valid, empty Parquet file with schema
+                    collected_df.write_parquet(final_path, compression="zstd")
+                else:  # format == "csv"
                     model_type = cast(
                         Optional[Type[BaseModel]], FAERS_TABLE_MODELS.get(table_name)
                     )
+                    # Write headers if model is known, otherwise write an empty file
+                    headers = ""
                     if model_type:
-                        model_headers = [f.lower() for f in model_type.model_fields.keys()]
-                        with open(final_path, "w") as f:
-                            f.write("$".join(model_headers))
+                        headers = "$".join([f.lower() for f in model_type.model_fields.keys()])
+                    with open(final_path, "w") as f:
+                        f.write(headers)
 
         return final_files
