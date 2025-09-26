@@ -1,13 +1,17 @@
-[tool.poetry]
+[project]
 name = "py_load_faers"
 version = "1.0.0"
 description = "A Python package for high-performance ETL of FAERS data."
-authors = ["Gowtham Adamane Rao <rao@ohdsi.org>"]
-license = "The Prosperity Public License 3.0.0"
+authors = [
+  { name="Gowtham Adamane Rao", email="rao@ohdsi.org" },
+]
+license = { file = "LICENSE" }
 readme = "README.md"
 classifiers = [
     "License :: Other/Proprietary License",
 ]
+
+[tool.poetry]
 
 [tool.poetry.dependencies]
 python = ">=3.11"
