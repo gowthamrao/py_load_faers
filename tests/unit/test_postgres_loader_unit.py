@@ -189,9 +189,7 @@ def test_execute_deletions_with_ids(loader: PostgresLoader) -> None:
 
     assert deleted_count == 7  # 7 tables * 1 row deleted
 
-    delete_calls = [
-        c for c in mock_cursor.execute.call_args_list if "DELETE FROM" in c[0][0]
-    ]
+    delete_calls = [c for c in mock_cursor.execute.call_args_list if "DELETE FROM" in c[0][0]]
     assert len(delete_calls) == 7
     assert "DELETE FROM ther" in delete_calls[0][0][0]
     assert "DELETE FROM demo" in delete_calls[6][0][0]
@@ -206,9 +204,9 @@ def test_bulk_load_csv_multiple_chunks(loader: PostgresLoader, tmp_path: Path) -
     csv_file.write_text(content)
 
     mock_copy = MagicMock()
-    loader.conn.cursor.return_value.__enter__.return_value.copy.return_value.__enter__.return_value = (
-        mock_copy
-    )
+    (
+        loader.conn.cursor.return_value.__enter__.return_value.copy.return_value.__enter__.return_value
+    ) = mock_copy
 
     loader.execute_native_bulk_load("demo", csv_file)
     # Check that write was called multiple times

@@ -14,8 +14,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from lxml import etree
-
 from py_load_faers.parser import parse_ascii_file, parse_ascii_quarter, parse_xml_file
 
 SAMPLE_DEMO_DATA = """\
@@ -223,9 +221,7 @@ def test_parse_xml_missing_patient_and_source() -> None:
     assert record_list[0]["indi"] == []
     assert record_list[0]["rpsr"] == []
     # Check that the table from summary is still populated
-    assert record_list[0]["outc"] == [
-        {"primaryid": "1", "caseid": "1", "outc_cod": "DE"}
-    ]
+    assert record_list[0]["outc"] == [{"primaryid": "1", "caseid": "1", "outc_cod": "DE"}]
 
 
 def test_parse_malformed_data(tmp_path: Path) -> None:

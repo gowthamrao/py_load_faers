@@ -14,7 +14,12 @@ from unittest.mock import patch, MagicMock, call
 
 import polars as pl
 import pytest
-from py_load_faers.config import AppSettings, DatabaseSettings, DownloaderSettings, ProcessingSettings
+from py_load_faers.config import (
+    AppSettings,
+    DatabaseSettings,
+    DownloaderSettings,
+    ProcessingSettings,
+)
 from py_load_faers.engine import FaersLoaderEngine, _generate_quarters_to_load
 
 
@@ -85,10 +90,14 @@ def test_process_quarter_no_demo_records(
     engine = FaersLoaderEngine(mock_config, mock_db_loader)
     # Mock the return value for the DQ checks to avoid unpack error
     mock_db_loader.run_post_load_dq_checks.return_value = (True, "OK")
-    with patch("py_load_faers.engine.download_quarter", return_value=("zip_path", "checksum")), patch(
+    with patch(
+        "py_load_faers.engine.download_quarter", return_value=("zip_path", "checksum")
+    ), patch(
         "py_load_faers.engine.FaersLoaderEngine._parse_quarter_zip",
         return_value=(iter([]), set()),
-    ), patch("py_load_faers.engine.stage_data", return_value={"other_table": [Path("file")]}):
+    ), patch(
+        "py_load_faers.engine.stage_data", return_value={"other_table": [Path("file")]}
+    ):
         engine.run_load(quarter="2023q1")
         final_metadata = mock_db_loader.update_load_history.call_args[0][0]
         assert final_metadata["status"] == "SUCCESS"
@@ -100,7 +109,9 @@ def test_process_quarter_exception_and_rollback(
     """Test that any exception during processing triggers a rollback."""
     engine = FaersLoaderEngine(mock_config, mock_db_loader)
     error_message = "Staging failed"
-    with patch("py_load_faers.engine.download_quarter", return_value=("zip_path", "checksum")), patch(
+    with patch(
+        "py_load_faers.engine.download_quarter", return_value=("zip_path", "checksum")
+    ), patch(
         "py_load_faers.engine.FaersLoaderEngine._parse_quarter_zip",
         side_effect=Exception(error_message),
     ):
@@ -143,7 +154,6 @@ def test_get_caseids_from_final_demo_no_file(mock_config: AppSettings) -> None:
 def test_parse_quarter_zip_xml(tmp_path: Path, mock_config: AppSettings) -> None:
     """Test parsing a zip file containing XML."""
     zip_path = tmp_path / "test.zip"
-    xml_content = "<root></root>"
     with patch("zipfile.ZipFile") as mock_zip:
         mock_zip.return_value.__enter__.return_value.namelist.return_value = ["test.xml"]
         mock_zip.return_value.__enter__.return_value.open.return_value.__enter__.return_value = (
@@ -187,9 +197,7 @@ def test_run_load_delta_first_run(mock_config: AppSettings, mock_db_loader: Magi
         mock_process.assert_called_once_with("2023q1", "DELTA")
 
 
-def test_filter_staged_files_polars_no_chunks(
-    mock_config: AppSettings, tmp_path: Path
-) -> None:
+def test_filter_staged_files_polars_no_chunks(mock_config: AppSettings, tmp_path: Path) -> None:
     """Test _filter_staged_files_polars when a table has no chunks."""
     engine = FaersLoaderEngine(mock_config, MagicMock())
     staged_files = {"demo": []}  # No chunks for demo table
@@ -209,7 +217,9 @@ def test_filter_staged_files_empty_csv_with_known_model(
     from py_load_faers.models import Demo
 
     headers = list(Demo.model_fields.keys())
-    csv_path.write_text("$".join(headers) + "\n" + "$".join(["1", "101", "20250101", "", "", "", "", ""]))
+    csv_path.write_text(
+        "$".join(headers) + "\n" + "$".join(["1", "101", "20250101", "", "", "", "", ""])
+    )
 
     staged_files = {"demo": [csv_path]}
     # Filter with a primaryid that doesn't exist
@@ -303,9 +313,7 @@ def test_process_quarter_only_nullifications(
         "py_load_faers.engine.FaersLoaderEngine._parse_quarter_zip",
         # Return nullified IDs, but an iterator that yields no demo records
         return_value=(iter([{"other": [{"id": 1}]}]), {"null_id_1"}),
-    ), patch(
-        "py_load_faers.engine.stage_data", return_value={"other": [Path("file")]}
-    ), patch(
+    ), patch("py_load_faers.engine.stage_data", return_value={"other": [Path("file")]}), patch(
         "py_load_faers.engine.deduplicate_polars", return_value=set()
     ):
         engine.run_load(quarter="2023q4")
@@ -355,9 +363,7 @@ def test_filter_staged_files_polars_writes_parquet(
     assert df["primaryid"][0] == "1"
 
 
-def test_filter_staged_files_empty_unknown_model(
-    mock_config: AppSettings, tmp_path: Path
-) -> None:
+def test_filter_staged_files_empty_unknown_model(mock_config: AppSettings, tmp_path: Path) -> None:
     """
     Test the case where an empty CSV is created for a table not in FAERS_TABLE_MODELS.
     This covers the `else` branch of the `if model_type:` check.

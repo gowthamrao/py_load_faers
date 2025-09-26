@@ -12,7 +12,7 @@ Tests for the staging module.
 import csv
 import zipfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import polars as pl
 import pytest
@@ -162,9 +162,7 @@ def test_stage_data_no_staging_dir(tmp_path: Path) -> None:
 
         # Test Parquet path
         settings_parquet = ProcessingSettings(staging_format="parquet")
-        staged_files_parquet = stage_data(
-            iter(MOCK_RECORDS), MOCK_TABLE_MODELS, settings_parquet
-        )
+        staged_files_parquet = stage_data(iter(MOCK_RECORDS), MOCK_TABLE_MODELS, settings_parquet)
         assert len(staged_files_parquet["patient"]) == 1
 
 

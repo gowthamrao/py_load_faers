@@ -328,9 +328,7 @@ class FaersLoaderEngine:
                     # Write headers if model is known, otherwise write an empty file
                     headers = ""
                     if model_type:
-                        headers = "$".join(
-                            [f.lower() for f in model_type.model_fields.keys()]
-                        )
+                        headers = "$".join([f.lower() for f in model_type.model_fields.keys()])
                     with open(final_path, "w") as f:
                         f.write(headers)
 

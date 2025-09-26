@@ -53,9 +53,7 @@ def test_download_latest_quarter(mock_config: AppSettings, caplog) -> None:
     """Test the download command for the latest quarter."""
     with patch("py_load_faers.cli.config.load_config", return_value=mock_config), patch(
         "py_load_faers.cli.downloader.find_latest_quarter", return_value="2023q2"
-    ) as mock_find, patch(
-        "py_load_faers.cli.downloader.download_quarter"
-    ) as mock_download:
+    ) as mock_find, patch("py_load_faers.cli.downloader.download_quarter") as mock_download:
         with caplog.at_level(logging.INFO):
             result = runner.invoke(app, ["download"])
         assert result.exit_code == 0
@@ -84,9 +82,7 @@ def test_run_delta_mode(mock_config: AppSettings) -> None:
         result = runner.invoke(app, ["run", "--mode", "delta"])
         assert result.exit_code == 0
         assert "ETL process completed. DQ checks passed." in result.stdout
-        mock_engine.return_value.run_load.assert_called_once_with(
-            mode="delta", quarter=None
-        )
+        mock_engine.return_value.run_load.assert_called_once_with(mode="delta", quarter=None)
 
 
 def test_run_partial_mode(mock_config: AppSettings) -> None:
@@ -97,9 +93,7 @@ def test_run_partial_mode(mock_config: AppSettings) -> None:
         mock_engine.return_value.run_load.return_value = (True, "DQ checks passed.")
         result = runner.invoke(app, ["run", "--mode", "partial", "--quarter", "2023q1"])
         assert result.exit_code == 0
-        mock_engine.return_value.run_load.assert_called_once_with(
-            mode="partial", quarter="2023q1"
-        )
+        mock_engine.return_value.run_load.assert_called_once_with(mode="partial", quarter="2023q1")
 
 
 def test_run_no_new_data(mock_config: AppSettings) -> None:
