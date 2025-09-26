@@ -107,10 +107,6 @@ def load_config(profile: Optional[str] = None, config_file: Optional[str] = None
 
     # 2. Load from YAML file
     cfg_path_str = config_file or os.environ.get("CONFIG_FILE", "config.yaml")
-    if cfg_path_str is None:
-        # This case should not be reachable due to the default in `get`, but it
-        # satisfies mypy that `cfg_path_str` is not None.
-        cfg_path_str = "config.yaml"
     cfg_path = Path(cfg_path_str)
 
     if cfg_path.exists():

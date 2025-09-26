@@ -265,3 +265,76 @@ def test_download_quarter_preexisting_file(mocker: MockerFixture, tmp_path: Path
     assert result is not None
     result_path, _ = result
     assert result_path.read_bytes() == zip_content
+
+
+def test_find_latest_quarter_request_exception(mocker: MockerFixture) -> None:
+    """Test that a request exception is handled and returns None."""
+    mocker.patch("requests.Session.get", side_effect=requests.RequestException("Network Error"))
+    assert downloader.find_latest_quarter() is None
+
+
+def test_find_latest_quarter_no_matching_links(mocker: MockerFixture) -> None:
+    """Test that no quarter is found if links do not match the expected pattern."""
+    html_with_other_links = b'<html><body><a href="other.zip"></a></body></html>'
+    mock_response = MagicMock()
+    mock_response.content = html_with_other_links
+    mocker.patch("requests.Session.get", return_value=mock_response)
+    assert downloader.find_latest_quarter() is None
+
+
+def test_download_quarter_corrupted_zip_testzip(mocker: MockerFixture, tmp_path: Path) -> None:
+    """Test that a zip file failing testzip() is deleted."""
+    # Mock a successful download
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.headers.get.return_value = "123"
+    mock_response.iter_content.return_value = [b"some data"]
+    mocker.patch("requests.Session.get", return_value=mock_response)
+
+    # Mock is_zipfile to be true, but testzip to fail
+    mocker.patch("zipfile.is_zipfile", return_value=True)
+    mocker.patch("zipfile.ZipFile.testzip", return_value="corrupted_member.txt")
+
+    settings = DownloaderSettings(download_dir=str(tmp_path))
+    quarter = "2025q1"
+    filepath = tmp_path / f"faers_ascii_{quarter}.zip"
+
+    result = downloader.download_quarter(quarter, settings)
+    assert result is None
+    assert not filepath.exists()
+
+
+def test_find_latest_quarter_weird_soup(mocker: MockerFixture) -> None:
+    """Test that the parser handles non-Tag objects in the soup find_all result."""
+    # This HTML contains a link and then a plain string, which BeautifulSoup
+    # will parse into a Tag and a NavigableString. The code should handle this.
+    html_with_navigable_string = (
+        b'<html><body><a href="faers_ascii_2025q1.zip">Link</a>Text</body></html>'
+    )
+    mock_response = MagicMock()
+    mock_response.content = html_with_navigable_string
+    mocker.patch("requests.Session.get", return_value=mock_response)
+    # The code should correctly ignore the "Text" node and parse the link.
+    assert downloader.find_latest_quarter() == "2025q1"
+
+
+def test_download_quarter_empty_chunk(mocker: MockerFixture, tmp_path: Path) -> None:
+    """Test that the downloader handles empty chunks from iter_content."""
+    # Create a valid in-memory zip file
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("test.txt", "content")
+    zip_content = zip_buffer.getvalue()
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.headers.get.return_value = str(len(zip_content))
+    # Simulate a stream that includes an empty chunk but is a valid zip when combined
+    mock_response.iter_content.return_value = [zip_content[:5], b"", zip_content[5:]]
+    mocker.patch("requests.Session.get", return_value=mock_response)
+
+    settings = DownloaderSettings(download_dir=str(tmp_path))
+    result = downloader.download_quarter("2025q1", settings)
+    assert result is not None
+    # Check that the file was written correctly by combining the chunks
+    assert result[0].read_bytes() == zip_content
