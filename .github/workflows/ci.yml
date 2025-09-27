@@ -1,0 +1,87 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  lint:
+    name: Lint and static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      - name: Run linters
+        run: |
+          poetry run black --check .
+          poetry run ruff .
+          poetry run mypy py_load_faers
+
+  test:
+    name: Test with Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    needs: lint
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-2022]
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Set up PostgreSQL
+        uses: ikalnytskyi/action-setup-postgres@v7
+        with:
+          postgres-version: '14'
+          username: postgres
+          password: postgres
+          database: testdb
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+        shell: bash
+
+      - name: Install project
+        run: poetry install --no-interaction
+        shell: bash
+
+      - name: Run tests and collect coverage
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: testdb
+          CI: true
+        run: |
+          poetry run pytest --cov=py_load_faers --cov-report=xml
+        shell: bash
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
